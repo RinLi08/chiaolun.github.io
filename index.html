@@ -33,7 +33,7 @@
         }
 
         .branding { margin-bottom: 40px; width: 100%; text-align: center; }
-        .branding h1 { color: #ffffff; font-size: 24px; font-weight: 700; line-height: 1.2; margin-bottom: 8px; text-transform: uppercase; white-space: nowrap; text-align: center; }
+        .branding h1 { color: #ffffff; font-size: 24px; font-weight: 700; line-height: 1.2; margin-bottom: 8px; text-transform: uppercase; white-space: nowrap; text-align: center; cursor: pointer; user-select: none; }
         .branding p { font-size: 14px; color: #a0a0a0; text-align: center; }
         
         .menu-category { 
@@ -94,7 +94,7 @@
         .preview-toggle-btn {
             background: #ffffff; color: #000; border: none; padding: 10px 20px;
             font-size: 13px; font-weight: bold; border-radius: 30px; cursor: pointer;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.4); transition: 0.2s;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4); transition: 0.2s; display: none;
         }
         .preview-toggle-btn:hover { background: #cccccc; transform: scale(1.05); }
 
@@ -278,7 +278,7 @@
         .lightbox-prev { left: 30px; }
         .lightbox-next { right: 30px; }
 
-        /* ================= 預覽模式強效關閉編輯與點擊光標控制 ================= */
+        /* ================= 預覽模式（對外預設呈現） ================= */
         body.preview-mode [contenteditable="true"] { 
             outline: none !important; 
             background: transparent !important; 
@@ -331,12 +331,12 @@
         }
     </style>
 </head>
-<body>
+<body class="preview-mode">
 
     <div class="top-controls">
         <span class="save-indicator" id="saveIndicator">✓ 已自動儲存</span>
         <div class="menu-toggle-btn" id="menuToggleBtn">☰</div>
-        <button class="preview-toggle-btn" id="previewToggleBtn">👁 發布預覽</button>
+        <button class="preview-toggle-btn" id="previewToggleBtn">✏️ 切換編輯模式</button>
     </div>
 
     <!-- 全螢幕燈箱 Modal -->
@@ -353,8 +353,8 @@
 
     <aside class="sidebar" id="sidebar">
         <div class="branding">
-            <h1 id="authorName" contenteditable="true">CHIAO-LUN LI</h1>
-            <p id="authorRole" contenteditable="true">Animator/2D Artist</p>
+            <h1 id="authorName" contenteditable="false" data-was-editable="true">CHIAO-LUN LI</h1>
+            <p id="authorRole" contenteditable="false" data-was-editable="true">Animator/2D Artist</p>
         </div>
 
         <nav class="menu">
@@ -370,7 +370,7 @@
                 <a href="http://127.0.0.1:5500/url?id=0" target="_blank" class="social-icon-link" title="LinkedIn">
                     <i class="fab fa-linkedin-in"></i>
                 </a>
-                <a href="url?id=1" class="social-icon-link" title="Send Email">
+                <a href="https://rinli08.github.io/chiaolun.github.io/url?id=1" class="social-icon-link" title="Send Email">
                     <i class="fas fa-envelope"></i>
                 </a>
             </div>
@@ -414,12 +414,23 @@
         let activeCoverItem = null; 
         let activeUploadSlot = null; 
         let activeGalleryBlock = null;
-        let isPreviewMode = false;
+        let isPreviewMode = true; // 預設為展示/預覽模式
         let saveTimeout = null;
+        let titleClickCount = 0;
+        let titleClickTimer = null;
 
-        let currentGalleryImages = [];
-        let currentImageIndex = 0;
-        let draggedItem = null;
+        // 連擊左上角標題 3 下觸發解鎖編輯按鈕
+        authorName.addEventListener('click', () => {
+            titleClickCount++;
+            clearTimeout(titleClickTimer);
+            if (titleClickCount >= 3) {
+                previewToggleBtn.style.display = 'block';
+                alert('🔓 已開啟控制按鈕！點擊右上角的「切換編輯模式」即可進行修訂。');
+                titleClickCount = 0;
+            } else {
+                titleClickTimer = setTimeout(() => { titleClickCount = 0; }, 1000);
+            }
+        });
 
         function triggerAutoSave() {
             clearTimeout(saveTimeout);
@@ -434,7 +445,6 @@
             sidebar.classList.toggle('active');
         });
 
-        // 核心切換邏輯：動態開關 contenteditable 屬性，徹底解決點擊閃爍打字游標的問題
         previewToggleBtn.addEventListener('click', () => {
             if (document.activeElement && document.activeElement.blur) {
                 document.activeElement.blur();
@@ -444,28 +454,24 @@
             isPreviewMode = !isPreviewMode;
             document.body.classList.toggle('preview-mode', isPreviewMode);
             
-            // 動態切換頁面上所有可編輯區塊的 contenteditable 狀態
-            const editables = document.querySelectorAll('[contenteditable]');
+            const editables = document.querySelectorAll('[data-was-editable="true"]');
             editables.forEach(el => {
                 if (isPreviewMode) {
                     el.setAttribute('contenteditable', 'false');
-                    el.setAttribute('data-was-editable', 'true');
                 } else {
-                    if (el.getAttribute('data-was-editable') === 'true') {
-                        el.setAttribute('contenteditable', 'true');
-                    }
+                    el.setAttribute('contenteditable', 'true');
                 }
             });
 
             if (isPreviewMode) {
-                previewToggleBtn.innerHTML = "✏️ 返回編輯";
-                previewToggleBtn.style.background = "#333";
-                previewToggleBtn.style.color = "#fff";
-                sidebar.classList.remove('active');
-            } else {
-                previewToggleBtn.innerHTML = "👁 發布預覽";
+                previewToggleBtn.innerHTML = "✏️ 開啟編輯";
                 previewToggleBtn.style.background = "#fff";
                 previewToggleBtn.style.color = "#000";
+                sidebar.classList.remove('active');
+            } else {
+                previewToggleBtn.innerHTML = "👁 完成並鎖定預覽";
+                previewToggleBtn.style.background = "#333";
+                previewToggleBtn.style.color = "#fff";
             }
         });
 
@@ -1185,7 +1191,7 @@
                         cover: "assets/covers/cover_sketch.png",
                         blocks: [
                             { type: "gallery", images: ["assets/sketch/isk06.jpg","assets/sketch/IMG_2095.JPG","assets/sketch/isk03.jpg","assets/sketch/isk02.jpg","assets/sketch/isk05.jpg","assets/sketch/s010.jpg","assets/sketch/IMG_1451.JPG","assets/sketch/l003.jpg","assets/sketch/rough.jpg","assets/sketch/s004.jpg","assets/sketch/s019.jpg","assets/sketch/s025.jpg","assets/sketch/samurai_05.png","assets/sketch/samurai_01.png","assets/sketch/samurai_02.png","assets/sketch/sc_4.jpg","assets/sketch/sc_5.jpg","assets/sketch/sc_10.jpg"], marginTop: "0px" },
-                            { type: "gallery", images: ["assets/sketch/100days/IMG_1811.PNG","assets/sketch/100days/IMG_2220.PNG","assets/sketch/100days/IMG_2227.PNG","assets/sketch/100days/IMG_2221.PNG","assets/sketch/100days/IMG_2222.PNG","assets/sketch/100days/IMG_2223.PNG","assets/sketch/100days/IMG_2224.PNG","assets/sketch/100days/IMG_2225.PNG","assets/sketch/100days/IMG_2226.PNG","assets/sketch/100days/IMG_2228.PNG","assets/sketch/100days/IMG_2231.PNG","assets/sketch/100days/IMG_2233.PNG","assets/sketch/100days/IMG_2229.PNG","assets/sketch/100days/IMG_2230.PNG","assets/sketch/100days/IMG_2232.PNG","assets/sketch/100days/IMG_2234.PNG","assets/sketch/100days/IMG_2238.PNG","assets/sketch/100days/IMG_2241.PNG","assets/sketch/100days/IMG_2235.PNG","assets/sketch/100days/IMG_2236.PNG","assets/sketch/100days/IMG_2237.PNG","assets/sketch/100days/IMG_2239.PNG","assets/sketch/100days/IMG_2245.PNG","assets/sketch/100days/IMG_2242.PNG","assets/sketch/100days/IMG_2240.PNG","assets/sketch/100days/IMG_2243.PNG","assets/sketch/100days/IMG_2244.PNG","assets/sketch/100days/IMG_2246.PNG","assets/sketch/100days/IMG_2247.PNG","assets/sketch/100days/IMG_2248.PNG","assets/sketch/100days/IMG_2255.PNG","assets/sketch/100days/IMG_2261.PNG","assets/sketch/100days/IMG_2270.PNG","assets/sketch/100days/IMG_2272.PNG","assets/sketch/100days/IMG_2381.PNG","assets/sketch/100days/IMG_2382.PNG","assets/sketch/100days/IMG_2383.PNG","assets/sketch/100days/IMG_2384.PNG","assets/sketch/100days/IMG_2385.PNG","assets/sketch/100days/IMG_2386.PNG","assets/sketch/100days/IMG_2412.PNG","assets/sketch/100days/IMG_2413.PNG","assets/sketch/100days/IMG_2414.PNG","assets/sketch/100days/IMG_2449.PNG","assets/sketch/100days/IMG_2450.PNG","assets/sketch/100days/IMG_2451.PNG","assets/sketch/100days/IMG_2452.PNG","assets/sketch/100days/IMG_2473.PNG","assets/sketch/100days/IMG_2468.jpg","assets/sketch/100days/IMG_2483.PNG","assets/sketch/100days/IMG_2511.PNG","assets/sketch/100days/IMG_2481.PNG","assets/sketch/100days/IMG_2482.PNG","assets/sketch/100days/IMG_2484.PNG","assets/sketch/100days/IMG_2504.PNG","assets/sketch/100days/IMG_2505.PNG","assets/sketch/100days/IMG_2506.PNG","assets/sketch/100days/IMG_2507.PNG","assets/sketch/100days/IMG_2509.PNG","assets/sketch/100days/IMG_2510.PNG","assets/sketch/100days/IMG_2512.PNG","assets/sketch/100days/IMG_2532.PNG","assets/sketch/100days/IMG_2533.PNG","assets/sketch/100days/IMG_2530.PNG","assets/sketch/100days/IMG_2508.PNG","assets/sketch/100days/IMG_2548.PNG","assets/sketch/100days/IMG_2534.PNG","assets/sketch/100days/IMG_2535.PNG","assets/sketch/100days/IMG_2637.PNG","assets/sketch/100days/IMG_2531.PNG","assets/sketch/100days/IMG_2547.PNG","assets/sketch/100days/IMG_2549.PNG","assets/sketch/100days/IMG_2550.PNG","assets/sketch/100days/IMG_2551.PNG","assets/sketch/100days/IMG_2638.PNG","assets/sketch/100days/IMG_2640.PNG","assets/sketch/100days/IMG_2643.PNG","assets/sketch/100days/IMG_2641.PNG","assets/sketch/100days/IMG_2642.PNG","assets/sketch/100days/IMG_2644.PNG","assets/sketch/100days/IMG_2645.PNG","assets/sketch/100days/IMG_2649.jpg","assets/sketch/100days/IMG_2650.PNG","assets/sketch/100days/IMG_2652.PNG","assets/sketch/100days/IMG_2653.PNG","assets/sketch/100days/IMG_2659.PNG"], marginTop: "50px" }
+                            { type: "gallery", images: ["assets/sketch/100days/IMG_1811.PNG","assets/sketch/100days/IMG_2220.PNG","assets/sketch/100days/IMG_2227.PNG","assets/sketch/100days/IMG_2221.PNG","assets/sketch/100days/IMG_2222.PNG","assets/sketch/100days/IMG_2223.PNG","assets/sketch/100days/IMG_2224.PNG","assets/sketch/100days/IMG_2225.PNG","assets/sketch/100days/IMG_2226.PNG","assets/sketch/100days/IMG_2228.PNG","assets/sketch/100days/IMG_2231.PNG","assets/sketch/100days/IMG_2233.PNG","assets/sketch/100days/IMG_2229.PNG","assets/sketch/100days/IMG_2230.PNG","assets/sketch/100days/IMG_2232.PNG","assets/sketch/100days/IMG_2234.PNG","assets/sketch/100days/IMG_2238.PNG","assets/sketch/100days/IMG_2241.PNG","assets/sketch/100days/IMG_2235.PNG","assets/sketch/100days/IMG_2236.PNG","assets/sketch/100days/IMG_2237.PNG","assets/sketch/100days/IMG_2239.PNG","assets/sketch/100days/IMG_2245.PNG","assets/sketch/100days/IMG_2242.PNG","assets/sketch/100days/IMG_2240.PNG","assets/sketch/100days/IMG_2243.PNG","assets/sketch/100days/IMG_2244.PNG","assets/sketch/100days/IMG_2246.PNG","assets/sketch/100days/IMG_2247.PNG","assets/sketch/100days/IMG_2248.PNG","assets/sketch/100days/IMG_2255.PNG","assets/sketch/100days/IMG_2261.PNG","assets/sketch/100days/IMG_2270.PNG","assets/sketch/100days/IMG_2272.PNG","assets/sketch/100days/IMG_2381.PNG","assets/sketch/100days/IMG_2382.PNG","assets/sketch/100days/IMG_2383.PNG","assets/sketch/100days/IMG_2384.PNG","assets/sketch/100days/IMG_2385.PNG","assets/sketch/100days/IMG_2386.PNG","assets/sketch/100days/IMG_2412.PNG","assets/sketch/100days/IMG_2413.PNG","assets/sketch/100days/IMG_2414.PNG","assets/sketch/100days/IMG_2449.PNG","assets/sketch/100days/IMG_2450.PNG","assets/sketch/100days/IMG_2451.PNG","assets/sketch/100days/IMG_2452.PNG","assets/sketch/100days/IMG_2473.PNG","assets/sketch/100days/IMG_2468.jpg","assets/sketch/100days/IMG_2483.PNG","assets/sketch/100days/IMG_2511.PNG","assets/sketch/100days/IMG_2481.PNG","assets/sketch/100days/IMG_2482.PNG","assets/sketch/100days/IMG_2484.PNG","assets/sketch/100days/IMG_2504.PNG","assets/sketch/100days/IMG_2505.PNG","assets/sketch/100days/IMG_2506.PNG","assets/sketch/100days/IMG_2507.PNG","assets/sketch/100days/IMG_2509.PNG","assets/sketch/100days/IMG_2510.PNG","assets/sketch/100days/IMG_2512.PNG","assets/sketch/100days/IMG_2532.PNG","assets/sketch/100days/IMG_2533.PNG","assets/sketch/100days/IMG_2530.PNG","assets/sketch/100days/IMG_2508.PNG","assets/sketch/100days/IMG_2548.PNG","assets/sketch/100days/IMG_2534.PNG","assets/sketch/100days/IMG_2535.PNG","assets/sketch/100days/IMG_2637.PNG","assets/sketch/100days/IMG_2531.PNG","assets/sketch/100days/IMG_2547.PNG","assets/sketch/100days/IMG_2549.PNG","assets/sketch/100days/IMG_2550.PNG","assets/sketch/100days/IMG_2551.PNG","assets/sketch/100days/IMG_2638.PNG","assets/sketch/100days/IMG_2639.PNG","assets/sketch/100days/IMG_2640.PNG","assets/sketch/100days/IMG_2643.PNG","assets/sketch/100days/IMG_2641.PNG","assets/sketch/100days/IMG_2642.PNG","assets/sketch/100days/IMG_2644.PNG","assets/sketch/100days/IMG_2645.PNG","assets/sketch/100days/IMG_2649.jpg","assets/sketch/100days/IMG_2650.PNG","assets/sketch/100days/IMG_2652.PNG","assets/sketch/100days/IMG_2653.PNG","assets/sketch/100days/IMG_2659.PNG"], marginTop: "50px" }
                         ]
                     }
                 ];
