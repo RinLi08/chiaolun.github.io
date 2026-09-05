@@ -603,11 +603,12 @@
             detailContainer.setAttribute('data-id', id);
             detailContainer.style.display = 'none';
             
-            const defaultDesc = "點擊此處輸入專案的詳細文字說明、創作理念、或是參與製作的職務內容...";
+            // 修正：如果沒有傳入文字則留空，不再帶入測試用的提示預設文字
+            const formattedDesc = descText !== null ? descText : "";
             detailContainer.innerHTML = `
                 <div class="detail-header-text">
                     <h1 class="detail-title" contenteditable="${isPreviewMode ? 'false' : 'true'}" data-was-editable="true">${title}</h1>
-                    <div class="detail-desc" contenteditable="${isPreviewMode ? 'false' : 'true'}" data-was-editable="true">${descText || defaultDesc}</div>
+                    <div class="detail-desc" contenteditable="${isPreviewMode ? 'false' : 'true'}" data-was-editable="true">${formattedDesc}</div>
                 </div>
                 
                 <div class="dynamic-content-area"></div>
@@ -1087,8 +1088,9 @@
         }
 
         function loadDataFromLocalStorage() {
-           const json = localStorage.getItem(STORAGE_KEY);
+            const json = localStorage.getItem(STORAGE_KEY);
             if (!json) {
+                // 所有專案與其最新的完整內頁說明 (descText)
                 const initialProjects = [
                     {
                         title: "Animation Showreel",
@@ -1227,7 +1229,7 @@
                 ];
 
                 initialProjects.forEach(item => {
-                    createProject(item.title, null, item.cover, item.descText || null, item.blocks || []);
+                    createProject(item.title, null, item.cover, item.descText, item.blocks || []);
                 });
                 return;
             }
